@@ -45,20 +45,20 @@ class OutlineSync:
             subprocess.run(["git", "clone", task['repo_url'], repo_path])
 
         # 1. Export
-        exp = requests.post(f"{self.base_url}/api/collections.export", json={"id": col_id}, headers=self.headers).json()
+        exp = requests.post(f"{self.base_url}/api/collections.export", json={"format": "outline-markdown","id": col_id}, headers=self.headers).json()
         if not exp.get("success"): return
-
+        fileops_id=exp['data']['fileOperation']['id']
         # 2. Wait for ZIP
-        file_url = None
-        while not file_url:
-            t_res = requests.post(f"{self.base_url}/api/tasks.info", json={"id": exp['data']['id']}, headers=self.headers).json()
-            if t_res['data']['state'] == 'complete':
-                file_url = t_res['data']['result']['url']
+        file_res = None
+        while not file_res:
+            t_res = requests.post(f"{self.base_url}/api/fileOperations.info", json={"id":fileops_id }, headers=self.headers).json()
+            if t_res['data']['state'] == 'complete':file_res=1
             elif t_res['data']['state'] == 'failed': return
             else: time.sleep(5)
 
         # 3. Clean local and extract
-        r = requests.get(file_url)
+        r = requests.post(f"{self.base_url}/fileOperations.redirect",json={"id":fileops_id},headers=self.headers)
+        r.raise_for_status()
         with zipfile.ZipFile(io.BytesIO(r.content)) as z:
             z.extractall(repo_path)
 
