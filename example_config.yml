@@ -1,0 +1,12 @@
+outline_url: "https://outline.yourdomain.com" # can give http://<container_name>:3000 if in same stack or network
+outline_token: "outline_api_your_token_here"
+check_interval: 3600 # Sync every hour
+purge_local_history: true # Keeps the local container storage tiny
+
+sync_tasks:
+  - collection_name: "Engineering Docs"
+    repo_url: "https://<user>:<pat>@github.com/user/eng-docs.git"
+    branch: "main"
+  - collection_name: "Personal Wiki"
+    repo_url: "https://<user>:<pat>@github.com/user/my-wiki.git"
+    branch: "main"
