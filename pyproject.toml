@@ -1,7 +1,7 @@
 [project]
 name = "outline-sync"
 version = "0.1.0"
-description = "Add your description here"
+description = "Automatically exports your self-hosted **Outline** collections as Markdown and syncs them to **Git** repositories."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
