@@ -107,6 +107,7 @@ class OutlineSync:
             run_git(["branch", "-M", branch], repo_path)
             self.setup_git_identity(repo_path)
 
+
         # 1. Export
         exp = requests.post(f"{self.base_url}/api/collections.export", json={"format": "outline-markdown","id": col_id}, headers=self.headers).json()
         if not exp.get("data"): 
@@ -137,10 +138,10 @@ class OutlineSync:
         # self.setup_git_identity(repo_path)
         self.generate_readme(repo_path, name)
         run_git(["add", "."], repo_path)
-
+        is_empty_repo = run_git(["rev-parse", "HEAD"], repo_path, verbose=False).returncode != 0
         content_diff = run_git(["diff", "--cached", "--quiet", "--", name], repo_path, verbose=False)
         
-        if content_diff.returncode == 0:
+        if is_empty_repo or content_diff.returncode != 0:
             now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             run_git(["commit", "-m", f"Outline Sync: {now_str}"], repo_path)
             print(f"Changes committed. Pushing to {branch}...", flush=True)
