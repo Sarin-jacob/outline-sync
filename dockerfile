@@ -11,5 +11,6 @@ WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 COPY main.py .
 ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
 VOLUME /app/repos
 CMD ["python", "main.py"]

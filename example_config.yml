@@ -1,6 +1,8 @@
-outline_url: "https://outline.yourdomain.com" # can give http://<container_name>:3000 if in same stack or network
+outline_url: "https://outline.yourdomain.com"
 outline_token: "outline_api_your_token_here"
 check_interval: 3600 # Sync every hour
+git_user: "Outline Robot"
+git_email: "bot@domain.com"
 purge_local_history: true # Keeps the local container storage tiny
 
 sync_tasks:
