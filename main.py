@@ -69,6 +69,9 @@ class OutlineSync:
             run_git(["commit", "-m", f"Outline Sync: {now_str}"], repo_path)
             run_git(["push", "origin", task.get('branch', 'main')], repo_path)
             print(f"Pushed updates for {name}")
+            if self.config.get('purge_local_history', False):
+                run_git(["gc", "--prune=now", "--aggressive"], repo_path)
+                print(f"Local history purged for {name}.")
         else:
             print(f"No changes for {name}")
 

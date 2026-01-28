@@ -1,0 +1,8 @@
+services:
+  outline-sync:
+    build: .
+    container_name: outline-git-sync
+    restart: unless-stopped
+    volumes:
+      - ./config.yml:/app/config.yml:ro
+      - ./repo_data:/app/repos  
