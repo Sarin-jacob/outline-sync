@@ -6,6 +6,7 @@ import zipfile
 import io
 import yaml
 import shutil
+import urllib.parse
 from datetime import datetime
 
 print("Starting Application", flush=True)
@@ -39,7 +40,6 @@ class OutlineSync:
     def setup_git_identity(self, repo_path):
         name = self.config.get('git_user', 'Outline Sync Bot')
         email = self.config.get('git_email', 'sync@jell0.online')
-        # Removed extra single quotes around name/email
         run_git(["config", "user.name", name], repo_path, verbose=False)
         run_git(["config", "user.email", email], repo_path, verbose=False)
 
@@ -55,20 +55,56 @@ class OutlineSync:
                 print(f"API Connection Error: {e}", flush=True)
         return self.collections_cache.get(name)
 
+    def append_nested_links(self, target_dir):
+        """Finds markdown files that have nested documents and appends links idempotently."""
+        MARKER = "<!-- OUTLINE_SYNC_NESTED_LINKS -->"
+        
+        for root, dirs, files in os.walk(target_dir):
+            if '.git' in dirs:
+                dirs.remove('.git')
+                
+            for file in files:
+                if file.lower().endswith('.md') and file.lower() != 'readme.md':
+                    base_name = file[:-3]  # Strip '.md'
+                    potential_dir = os.path.join(root, base_name)
+                    
+                    if os.path.isdir(potential_dir):
+                        try:
+                            child_items = os.listdir(potential_dir)
+                            child_mds = [c for c in child_items if c.lower().endswith('.md')]
+                            child_mds.sort()
+                            
+                            if child_mds:
+                                md_path = os.path.join(root, file)
+                                
+                                # Read existing content to check for marker
+                                with open(md_path, 'r', encoding='utf-8') as f:
+                                    content = f.read()
+                                
+                                # Skip if we already appended links to this file
+                                if MARKER in content:
+                                    continue
+                                
+                                # Append horizontal rule and links safely
+                                with open(md_path, 'a', encoding='utf-8') as f:
+                                    f.write(f'\n\n{MARKER}\n---\n\n')
+                                    for child in child_mds:
+                                        child_title = child[:-3]
+                                        # Properly URL encode characters like #, ?, &, spaces
+                                        safe_link = urllib.parse.quote(f"{base_name}/{child}")
+                                        f.write(f"* [{child_title}]({safe_link})\n")
+                        except Exception as e:
+                            print(f"Error appending nested links to {file}: {e}", flush=True)
+
     def generate_readme(self, repo_path, collection_name):
         """Generates a README.md listing all markdown files in the collection folder."""
-        # The zip extraction usually creates a folder named after the collection
         collection_folder = os.path.join(repo_path, collection_name)
-        
-        # If the folder doesn't exist (e.g. empty export), we fall back to repo root
         target_dir = collection_folder if os.path.exists(collection_folder) else repo_path
         
         readme_content = [f"# {collection_name} Index\n", "Last synced: " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "\n\n## Documents\n"]
         
-        # Walk only the first level of the collection directory
         try:
             items = os.listdir(target_dir)
-            # Filter for .md files and exclude README.md itself
             md_files = [f for f in items if f.lower().endswith('.md') and f.lower() != 'readme.md']
             md_files.sort()
 
@@ -76,11 +112,10 @@ class OutlineSync:
                 readme_content.append("*No documents found.*")
             else:
                 for md in md_files:
-                    # Create a markdown link. Note: spaces in URLs need to be %20
-                    safe_link = f"{collection_name}/{md}".replace(" ", "%20")
+                    safe_link = urllib.parse.quote(f"{collection_name}/{md}")
                     readme_content.append(f"* [{md.replace('.md', '')}]({safe_link})")
             
-            with open(os.path.join(repo_path, "README.md"), "w") as f:
+            with open(os.path.join(repo_path, "README.md"), "w", encoding='utf-8') as f:
                 f.write("\n".join(readme_content))
             print(f"Generated README.md for {collection_name}", flush=True)
             
@@ -107,7 +142,6 @@ class OutlineSync:
             run_git(["branch", "-M", branch], repo_path)
             self.setup_git_identity(repo_path)
 
-
         # 1. Export
         exp = requests.post(f"{self.base_url}/api/collections.export", json={"format": "outline-markdown","id": col_id}, headers=self.headers).json()
         if not exp.get("data"): 
@@ -131,13 +165,31 @@ class OutlineSync:
         # 3. Clean and Extract
         r = requests.post(f"{self.base_url}/api/fileOperations.redirect", json={"id": fileops_id}, headers=self.headers)
         r.raise_for_status()
+        
+        # PREVENT GHOST FILES: Delete everything locally (except .git) before extracting
+        # This ensures deleted files in Outline are actually deleted in GitHub
+        for item in os.listdir(repo_path):
+            if item == '.git':
+                continue
+            item_path = os.path.join(repo_path, item)
+            if os.path.isdir(item_path):
+                shutil.rmtree(item_path)
+            else:
+                os.remove(item_path)
+
         with zipfile.ZipFile(io.BytesIO(r.content)) as z:
             z.extractall(repo_path)
 
+        # Update nested document files with internal links
+        collection_folder = os.path.join(repo_path, name)
+        target_dir = collection_folder if os.path.exists(collection_folder) else repo_path
+        self.append_nested_links(target_dir)
+
         # 4. Git Push
-        # self.setup_git_identity(repo_path)
         self.generate_readme(repo_path, name)
-        run_git(["add", "."], repo_path)
+        
+        # Use -A (all) to ensure deletions are staged properly
+        run_git(["add", "-A"], repo_path)
         is_empty_repo = run_git(["rev-parse", "HEAD"], repo_path, verbose=False).returncode != 0
         content_diff = run_git(["diff", "--cached", "--quiet", "--", name], repo_path, verbose=False)
         
