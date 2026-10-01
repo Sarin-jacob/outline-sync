@@ -6,3 +6,4 @@ repos/
 # Build output
 /outline-sync
 *.exe
+.env
