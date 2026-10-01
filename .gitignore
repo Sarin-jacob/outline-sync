@@ -1,10 +1,8 @@
-# Python-generated files
-__pycache__/
-*.py[oc]
-build/
-dist/
-wheels/
-*.egg-info
+# Local runtime data and secrets
+config.yml
+repo_data/
+repos/
 
-# Virtual environments
-.venv
+# Build output
+/outline-sync
+*.exe

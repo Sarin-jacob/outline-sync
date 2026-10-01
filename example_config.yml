@@ -1,9 +1,15 @@
 outline_url: "https://outline.yourdomain.com"
-outline_token: "outline_api_your_token_here"
-check_interval: 3600 # Sync every hour
+outline_token: "outline_api_your_token_here" # or set the OUTLINE_TOKEN env var
+check_interval: 3600 # Sync every hour (seconds)
 git_user: "Outline Robot"
 git_email: "bot@domain.com"
 purge_local_history: true # Keeps the local container storage tiny
+
+# Optional (defaults shown)
+# cleanup_exports: true     # Delete each export from Outline after downloading it (needs an admin token)
+# purge_old_exports: false  # Also delete exports of these collections left over from earlier runs
+# navigation: true          # Breadcrumbs, sub-page lists and "back to parent" links in every doc
+# export_timeout: 1800      # Seconds to wait for Outline to build an export
 
 sync_tasks:
   - collection_name: "Engineering Docs"

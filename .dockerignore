@@ -1,0 +1,4 @@
+.git
+repo_data
+config.yml
+*_test.go

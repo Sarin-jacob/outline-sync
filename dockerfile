@@ -1,16 +1,15 @@
-FROM ghcr.io/astral-sh/uv:python3.12-alpine AS builder
-WORKDIR /app
-ENV UV_COMPILE_BYTECODE=1
-ENV UV_LINK_MODE=copy
-COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project
+FROM golang:1.26-alpine AS builder
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY *.go ./
+RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/outline-sync .
 
-FROM python:3.12-alpine
-RUN apk add --no-cache git openssh-client
+FROM alpine:3
+RUN apk add --no-cache git openssh-client ca-certificates \
+ && git config --system --add safe.directory '*'
 WORKDIR /app
-COPY --from=builder /app/.venv /app/.venv
-COPY main.py .
-ENV PATH="/app/.venv/bin:$PATH"
-ENV PYTHONUNBUFFERED=1
+COPY --from=builder /out/outline-sync /usr/local/bin/outline-sync
+# Same paths as the Python image: /app/config.yml and /app/repos
 VOLUME /app/repos
-CMD ["python", "main.py"]
+CMD ["outline-sync"]
